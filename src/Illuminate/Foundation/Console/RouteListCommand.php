@@ -132,6 +132,8 @@ class RouteListCommand extends Command {
 
 		$middleware = array_unique(array_merge($middleware, $this->getPatternFilters($route)));
 
+		$middleware = array_unique(array_merge($middleware, $this->getControllerMiddlewareFromRoute($route)));
+
 		return implode(', ', $middleware);
 	}
 
@@ -186,6 +188,67 @@ class RouteListCommand extends Command {
 
 		return $route;
 	}
+
+	/**
+	 * Get the controller middleware from the given route
+	 *
+	 * @param  \Illuminate\Routing\Route $route
+	 * @return array
+	 */
+	protected function getControllerMiddlewareFromRoute($route)
+	{
+		list($class,$method) = explode('@', $route->getAction()['controller']);
+
+		$instance = $this->laravel->make($class);
+
+		return $this->getControllerMiddleware($instance, $method);
+	}
+
+
+	/**
+	 * Get the middleware for the controller instance.
+	 *
+	 * @FIXME copied from Illuminate\Routing\ControllerDispatcher@getMiddleware - refactor
+	 * I suggest moving this method to the base Controller
+	 *
+	 * @param  \Illuminate\Routing\Controller  $instance
+	 * @param  string  $method
+	 * @return array
+	 */
+	protected function getControllerMiddleware($instance, $method)
+	{
+		$middleware = $this->router->getMiddleware();
+
+		$results = [];
+
+		foreach ($instance->getMiddleware() as $name => $options)
+		{
+			if ( ! $this->methodExcludedByOptions($method, $options))
+			{
+				$results[] = array_get($middleware, $name, $name);
+			}
+		}
+
+		return $results;
+	}
+
+	/**
+	 * Determine if the given options exclude a particular method.
+	 *
+	 * @FIXME copied from Illuminate\Routing\ControllerDispatcher@methodExcludedByOptions - refactor
+	 * I suggest moving this method to the base Controller, although it is used in one other
+	 * method in ControllerDispatcher
+	 *
+	 * @param  string  $method
+	 * @param  array  $options
+	 * @return bool
+	 */
+	protected function methodExcludedByOptions($method, array $options)
+	{
+		return (( ! empty($options['only']) && ! in_array($method, (array) $options['only'])) ||
+			( ! empty($options['except']) && in_array($method, (array) $options['except'])));
+	}
+
 
 	/**
 	 * Get the console command options.
