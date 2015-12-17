@@ -7,14 +7,27 @@ use PHPUnit_Framework_TestCase;
 
 abstract class TestCase extends PHPUnit_Framework_TestCase
 {
-    use ApplicationTrait, AssertionsTrait, CrawlerTrait;
+    use Concerns\InteractsWithContainer,
+        Concerns\MakesHttpRequests,
+        Concerns\ImpersonatesUsers,
+        Concerns\InteractsWithConsole,
+        Concerns\InteractsWithDatabase,
+        Concerns\InteractsWithSession,
+        Concerns\MocksApplicationServices;
 
     /**
-     * The Eloquent factory instance.
+     * The Illuminate application instance.
      *
-     * @var \Illuminate\Database\Eloquent\Factory
+     * @var \Illuminate\Foundation\Application
      */
-    protected $factory;
+    protected $app;
+
+    /**
+     * The callbacks that should be run after the application is created.
+     *
+     * @var array
+     */
+    protected $afterApplicationCreatedCallbacks = [];
 
     /**
      * The callbacks that should be run before the application is destroyed.
@@ -22,6 +35,13 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
      * @var array
      */
     protected $beforeApplicationDestroyedCallbacks = [];
+
+    /**
+     * Indicates if we have made it throught the base setUp function.
+     *
+     * @var bool
+     */
+    protected $setUpHasRun = false;
 
     /**
      * Creates the application.
@@ -39,13 +59,27 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
      */
     public function setUp()
     {
-        if (!$this->app) {
+        if (! $this->app) {
             $this->refreshApplication();
         }
 
-        if (!$this->factory) {
-            $this->factory = $this->app->make('Illuminate\Database\Eloquent\Factory');
+        foreach ($this->afterApplicationCreatedCallbacks as $callback) {
+            call_user_func($callback);
         }
+
+        $this->setUpHasRun = true;
+    }
+
+    /**
+     * Refresh the application instance.
+     *
+     * @return void
+     */
+    protected function refreshApplication()
+    {
+        putenv('APP_ENV=testing');
+
+        $this->app = $this->createApplication();
     }
 
     /**
@@ -67,6 +101,30 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
             $this->app->flush();
 
             $this->app = null;
+        }
+
+        $this->setUpHasRun = false;
+
+        if (property_exists($this, 'serverVariables')) {
+            $this->serverVariables = [];
+        }
+
+        $this->afterApplicationCreatedCallbacks = [];
+        $this->beforeApplicationDestroyedCallbacks = [];
+    }
+
+    /**
+     * Register a callback to be run after the application is created.
+     *
+     * @param  callable  $callback
+     * @return void
+     */
+    protected function afterApplicationCreated(callable $callback)
+    {
+        $this->afterApplicationCreatedCallbacks[] = $callback;
+
+        if ($this->setUpHasRun) {
+            call_user_func($callback);
         }
     }
 

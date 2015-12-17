@@ -8,7 +8,6 @@ use Swift_Message;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use SuperClosure\Serializer;
-use Psr\Log\LoggerInterface;
 use InvalidArgumentException;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -48,13 +47,6 @@ class Mailer implements MailerContract, MailQueueContract
     protected $from;
 
     /**
-     * The log writer instance.
-     *
-     * @var \Psr\Log\LoggerInterface
-     */
-    protected $logger;
-
-    /**
      * The IoC container instance.
      *
      * @var \Illuminate\Contracts\Container\Container
@@ -69,25 +61,11 @@ class Mailer implements MailerContract, MailQueueContract
     protected $queue;
 
     /**
-     * Indicates if the actual sending is disabled.
-     *
-     * @var bool
-     */
-    protected $pretending = false;
-
-    /**
      * Array of failed recipients.
      *
      * @var array
      */
     protected $failedRecipients = [];
-
-    /**
-     * Array of parsed views containing html and text view name.
-     *
-     * @var array
-     */
-    protected $parsedViews = [];
 
     /**
      * Create a new Mailer instance.
@@ -159,7 +137,7 @@ class Mailer implements MailerContract, MailQueueContract
      * @param  string|array  $view
      * @param  array  $data
      * @param  \Closure|string  $callback
-     * @return mixed
+     * @return void
      */
     public function send($view, array $data, $callback)
     {
@@ -213,9 +191,25 @@ class Mailer implements MailerContract, MailQueueContract
      * @param  \Closure|string  $callback
      * @return mixed
      */
-    public function queueOn($queue, $view, array $data, $callback)
+    public function onQueue($queue, $view, array $data, $callback)
     {
         return $this->queue($view, $data, $callback, $queue);
+    }
+
+    /**
+     * Queue a new e-mail message for sending on the given queue.
+     *
+     * This method didn't match rest of framework's "onQueue" phrasing. Added "onQueue".
+     *
+     * @param  string  $queue
+     * @param  string|array  $view
+     * @param  array  $data
+     * @param  \Closure|string  $callback
+     * @return mixed
+     */
+    public function queueOn($queue, $view, array $data, $callback)
+    {
+        return $this->onQueue($queue, $view, $data, $callback);
     }
 
     /**
@@ -258,7 +252,7 @@ class Mailer implements MailerContract, MailQueueContract
      */
     protected function buildQueueCallable($callback)
     {
-        if (!$callback instanceof Closure) {
+        if (! $callback instanceof Closure) {
             return $callback;
         }
 
@@ -323,11 +317,15 @@ class Mailer implements MailerContract, MailQueueContract
         }
 
         if (isset($plain)) {
-            $message->addPart($this->getView($plain, $data), 'text/plain');
+            $method = isset($view) ? 'addPart' : 'setBody';
+
+            $message->$method($this->getView($plain, $data), 'text/plain');
         }
 
         if (isset($raw)) {
-            $message->addPart($raw, 'text/plain');
+            $method = (isset($view) || isset($plain)) ? 'addPart' : 'setBody';
+
+            $message->$method($raw, 'text/plain');
         }
     }
 
@@ -375,27 +373,10 @@ class Mailer implements MailerContract, MailQueueContract
     protected function sendSwiftMessage($message)
     {
         if ($this->events) {
-            $this->events->fire('mailer.sending', [$message]);
+            $this->events->fire(new Events\MessageSending($message));
         }
 
-        if (!$this->pretending) {
-            return $this->swift->send($message, $this->failedRecipients);
-        } elseif (isset($this->logger)) {
-            $this->logMessage($message);
-        }
-    }
-
-    /**
-     * Log that a message was sent.
-     *
-     * @param  \Swift_Message  $message
-     * @return void
-     */
-    protected function logMessage($message)
-    {
-        $emails = implode(', ', array_keys((array) $message->getTo()));
-
-        $this->logger->info("Pretending to mail message to: {$emails}");
+        return $this->swift->send($message, $this->failedRecipients);
     }
 
     /**
@@ -432,7 +413,7 @@ class Mailer implements MailerContract, MailQueueContract
         // If a global from address has been specified we will set it on every message
         // instances so the developer does not have to repeat themselves every time
         // they create a new message. We will just go ahead and push the address.
-        if (!empty($this->from['address'])) {
+        if (! empty($this->from['address'])) {
             $message->from($this->from['address'], $this->from['name']);
         }
 
@@ -449,27 +430,6 @@ class Mailer implements MailerContract, MailQueueContract
     protected function getView($view, $data)
     {
         return $this->views->make($view, $data)->render();
-    }
-
-    /**
-     * Tell the mailer to not really send messages.
-     *
-     * @param  bool  $value
-     * @return void
-     */
-    public function pretend($value = true)
-    {
-        $this->pretending = $value;
-    }
-
-    /**
-     * Check if the mailer is pretending to send messages.
-     *
-     * @return bool
-     */
-    public function isPretending()
-    {
-        return $this->pretending;
     }
 
     /**
@@ -511,19 +471,6 @@ class Mailer implements MailerContract, MailQueueContract
     public function setSwiftMailer($swift)
     {
         $this->swift = $swift;
-    }
-
-    /**
-     * Set the log writer instance.
-     *
-     * @param  \Psr\Log\LoggerInterface  $logger
-     * @return $this
-     */
-    public function setLogger(LoggerInterface $logger)
-    {
-        $this->logger = $logger;
-
-        return $this;
     }
 
     /**

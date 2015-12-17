@@ -3,11 +3,29 @@
 namespace Illuminate\Database\Eloquent;
 
 use ArrayAccess;
-use Faker\Factory as Faker;
+use Faker\Generator as Faker;
 use Symfony\Component\Finder\Finder;
 
 class Factory implements ArrayAccess
 {
+    /**
+     * The Faker instance for the builder.
+     *
+     * @var \Faker\Generator
+     */
+    protected $faker;
+
+    /**
+     * Create a new factory instance.
+     *
+     * @param  \Faker\Generator  $faker
+     * @return void
+     */
+    public function __construct(Faker $faker)
+    {
+        $this->faker = $faker;
+    }
+
     /**
      * The model definitions in the container.
      *
@@ -18,22 +36,15 @@ class Factory implements ArrayAccess
     /**
      * Create a new factory container.
      *
+     * @param  \Faker\Generator  $faker
      * @param  string|null  $pathToFactories
      * @return static
      */
-    public static function construct($pathToFactories = null)
+    public static function construct(Faker $faker, $pathToFactories = null)
     {
         $pathToFactories = $pathToFactories ?: database_path('factories');
 
-        $factory = new static;
-
-        if (is_dir($pathToFactories)) {
-            foreach (Finder::create()->files()->in($pathToFactories) as $file) {
-                require $file->getRealPath();
-            }
-        }
-
-        return $factory;
+        return (new static($faker))->load($pathToFactories);
     }
 
     /**
@@ -88,6 +99,25 @@ class Factory implements ArrayAccess
     }
 
     /**
+     * Load factories from path.
+     *
+     * @param  string  $path
+     * @return $this
+     */
+    public function load($path)
+    {
+        $factory = $this;
+
+        if (is_dir($path)) {
+            foreach (Finder::create()->files()->in($path) as $file) {
+                require $file->getRealPath();
+            }
+        }
+
+        return $factory;
+    }
+
+    /**
      * Create an instance of the given model.
      *
      * @param  string  $class
@@ -135,7 +165,7 @@ class Factory implements ArrayAccess
      */
     public function raw($class, array $attributes = [], $name = 'default')
     {
-        $raw = call_user_func($this->definitions[$class][$name], Faker::create());
+        $raw = call_user_func($this->definitions[$class][$name], $this->faker);
 
         return array_merge($raw, $attributes);
     }
@@ -149,7 +179,7 @@ class Factory implements ArrayAccess
      */
     public function of($class, $name = 'default')
     {
-        return new FactoryBuilder($class, $name, $this->definitions);
+        return new FactoryBuilder($class, $name, $this->definitions, $this->faker);
     }
 
     /**

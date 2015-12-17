@@ -15,7 +15,7 @@ class SessionTableCommandTest extends PHPUnit_Framework_TestCase
     {
         $command = new SessionTableCommandTestStub(
             $files = m::mock('Illuminate\Filesystem\Filesystem'),
-            $composer = m::mock('Illuminate\Foundation\Composer')
+            $composer = m::mock('Illuminate\Support\Composer')
         );
         $creator = m::mock('Illuminate\Database\Migrations\MigrationCreator')->shouldIgnoreMissing();
 
@@ -24,7 +24,7 @@ class SessionTableCommandTest extends PHPUnit_Framework_TestCase
         $app['migration.creator'] = $creator;
         $command->setLaravel($app);
         $path = __DIR__.'/migrations';
-        $creator->shouldReceive('create')->once()->with('create_session_table', $path)->andReturn($path);
+        $creator->shouldReceive('create')->once()->with('create_sessions_table', $path)->andReturn($path);
         $files->shouldReceive('get')->once()->andReturn('foo');
         $files->shouldReceive('put')->once()->with($path, 'foo');
         $composer->shouldReceive('dumpAutoloads')->once();

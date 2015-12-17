@@ -246,6 +246,21 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('hi there', $factory->yieldContent('foo'));
     }
 
+    public function testSectionMultipleExtending()
+    {
+        $factory = $this->getFactory();
+        $factory->startSection('foo');
+        echo 'hello @parent nice to see you @parent';
+        $factory->stopSection();
+        $factory->startSection('foo');
+        echo 'my @parent';
+        $factory->stopSection();
+        $factory->startSection('foo');
+        echo 'friend';
+        $factory->stopSection();
+        $this->assertEquals('hello my friend nice to see you my friend', $factory->yieldContent('foo'));
+    }
+
     public function testSingleStackPush()
     {
         $factory = $this->getFactory();
@@ -297,7 +312,7 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase
     public function testEmptyStringIsReturnedForNonSections()
     {
         $factory = $this->getFactory();
-        $this->assertEquals('', $factory->yieldContent('foo'));
+        $this->assertEmpty($factory->yieldContent('foo'));
     }
 
     public function testSectionFlushing()
@@ -358,17 +373,23 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('real', $view->getName());
     }
 
+    /**
+     * @expectedException InvalidArgumentException
+     */
     public function testExceptionIsThrownForUnknownExtension()
     {
-        $this->setExpectedException('InvalidArgumentException');
         $factory = $this->getFactory();
         $factory->getFinder()->shouldReceive('find')->once()->with('view')->andReturn('view.foo');
         $factory->make('view');
     }
 
+    /**
+     * @expectedException Exception
+     * @expectedExceptionMessage section exception message
+     */
     public function testExceptionsInSectionsAreThrown()
     {
-        $engine = new \Illuminate\View\Engines\CompilerEngine(m::mock('Illuminate\View\Compilers\CompilerInterface'));
+        $engine = new Illuminate\View\Engines\CompilerEngine(m::mock('Illuminate\View\Compilers\CompilerInterface'));
         $engine->getCompiler()->shouldReceive('getCompiledPath')->andReturnUsing(function ($path) { return $path; });
         $engine->getCompiler()->shouldReceive('isExpired')->twice()->andReturn(false);
         $factory = $this->getFactory();
@@ -377,8 +398,33 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase
         $factory->getFinder()->shouldReceive('find')->once()->with('view')->andReturn(__DIR__.'/fixtures/section-exception.php');
         $factory->getDispatcher()->shouldReceive('fire')->times(4);
 
-        $this->setExpectedException('Exception', 'section exception message');
         $factory->make('view')->render();
+    }
+
+    /**
+     * @expectedException InvalidArgumentException
+     * @expectedExceptionMessage Cannot end a section without first starting one.
+     */
+    public function testExtraStopSectionCallThrowsException()
+    {
+        $factory = $this->getFactory();
+        $factory->startSection('foo');
+        $factory->stopSection();
+
+        $factory->stopSection();
+    }
+
+    /**
+     * @expectedException InvalidArgumentException
+     * @expectedExceptionMessage Cannot end a section without first starting one.
+     */
+    public function testExtraAppendSectionCallThrowsException()
+    {
+        $factory = $this->getFactory();
+        $factory->startSection('foo');
+        $factory->stopSection();
+
+        $factory->appendSection();
     }
 
     protected function getFactory()

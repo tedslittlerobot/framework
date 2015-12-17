@@ -149,7 +149,7 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` drop index foo', $statements[0]);
+        $this->assertEquals('alter table `users` drop index `foo`', $statements[0]);
     }
 
     public function testDropIndex()
@@ -159,7 +159,7 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` drop index foo', $statements[0]);
+        $this->assertEquals('alter table `users` drop index `foo`', $statements[0]);
     }
 
     public function testDropForeign()
@@ -169,7 +169,7 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` drop foreign key foo', $statements[0]);
+        $this->assertEquals('alter table `users` drop foreign key `foo`', $statements[0]);
     }
 
     public function testDropTimestamps()
@@ -209,7 +209,7 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` add primary key bar(`foo`)', $statements[0]);
+        $this->assertEquals('alter table `users` add primary key `bar`(`foo`)', $statements[0]);
     }
 
     public function testAddingUniqueKey()
@@ -219,7 +219,7 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` add unique bar(`foo`)', $statements[0]);
+        $this->assertEquals('alter table `users` add unique `bar`(`foo`)', $statements[0]);
     }
 
     public function testAddingIndex()
@@ -229,7 +229,7 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` add index baz(`foo`, `bar`)', $statements[0]);
+        $this->assertEquals('alter table `users` add index `baz`(`foo`, `bar`)', $statements[0]);
     }
 
     public function testAddingForeignKey()
@@ -250,6 +250,16 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
 
         $this->assertEquals(1, count($statements));
         $this->assertEquals('alter table `users` add `id` int unsigned not null auto_increment primary key', $statements[0]);
+    }
+
+    public function testAddingSmallIncrementingID()
+    {
+        $blueprint = new Blueprint('users');
+        $blueprint->smallIncrements('id');
+        $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
+
+        $this->assertEquals(1, count($statements));
+        $this->assertEquals('alter table `users` add `id` smallint unsigned not null auto_increment primary key', $statements[0]);
     }
 
     public function testAddingBigIncrementingID()
@@ -475,7 +485,7 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` add `foo` text not null', $statements[0]);
+        $this->assertEquals('alter table `users` add `foo` json not null', $statements[0]);
     }
 
     public function testAddingJsonb()
@@ -485,7 +495,7 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` add `foo` text not null', $statements[0]);
+        $this->assertEquals('alter table `users` add `foo` json not null', $statements[0]);
     }
 
     public function testAddingDate()
@@ -545,7 +555,17 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` add `foo` timestamp default 0 not null', $statements[0]);
+        $this->assertEquals('alter table `users` add `foo` timestamp not null', $statements[0]);
+    }
+
+    public function testAddingTimeStampWithDefault()
+    {
+        $blueprint = new Blueprint('users');
+        $blueprint->timestamp('foo')->default('2015-07-22 11:43:17');
+        $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
+
+        $this->assertEquals(1, count($statements));
+        $this->assertEquals('alter table `users` add `foo` timestamp not null default \'2015-07-22 11:43:17\'', $statements[0]);
     }
 
     public function testAddingTimeStampTz()
@@ -555,7 +575,17 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` add `foo` timestamp default 0 not null', $statements[0]);
+        $this->assertEquals('alter table `users` add `foo` timestamp not null', $statements[0]);
+    }
+
+    public function testAddingTimeStampTzWithDefault()
+    {
+        $blueprint = new Blueprint('users');
+        $blueprint->timestampTz('foo')->default('2015-07-22 11:43:17');
+        $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
+
+        $this->assertEquals(1, count($statements));
+        $this->assertEquals('alter table `users` add `foo` timestamp not null default \'2015-07-22 11:43:17\'', $statements[0]);
     }
 
     public function testAddingTimeStamps()
@@ -565,7 +595,7 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` add `created_at` timestamp default 0 not null, add `updated_at` timestamp default 0 not null', $statements[0]);
+        $this->assertEquals('alter table `users` add `created_at` timestamp not null, add `updated_at` timestamp not null', $statements[0]);
     }
 
     public function testAddingTimeStampsTz()
@@ -575,7 +605,7 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
         $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
         $this->assertEquals(1, count($statements));
-        $this->assertEquals('alter table `users` add `created_at` timestamp default 0 not null, add `updated_at` timestamp default 0 not null', $statements[0]);
+        $this->assertEquals('alter table `users` add `created_at` timestamp not null, add `updated_at` timestamp not null', $statements[0]);
     }
 
     public function testAddingRememberToken()
@@ -596,6 +626,16 @@ class DatabaseMySqlSchemaGrammarTest extends PHPUnit_Framework_TestCase
 
         $this->assertEquals(1, count($statements));
         $this->assertEquals('alter table `users` add `foo` blob not null', $statements[0]);
+    }
+
+    public function testAddingUuid()
+    {
+        $blueprint = new Blueprint('users');
+        $blueprint->uuid('foo');
+        $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
+
+        $this->assertEquals(1, count($statements));
+        $this->assertEquals('alter table `users` add `foo` char(36) not null', $statements[0]);
     }
 
     protected function getConnection()

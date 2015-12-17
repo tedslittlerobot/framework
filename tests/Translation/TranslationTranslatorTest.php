@@ -18,6 +18,24 @@ class TranslationTranslatorTest extends PHPUnit_Framework_TestCase
         $t = $this->getMock('Illuminate\Translation\Translator', ['get'], [$this->getLoader(), 'en', 'sp']);
         $t->expects($this->once())->method('get')->with($this->equalTo('foo'), $this->equalTo([]), $this->equalTo('bar'))->will($this->returnValue('bar'));
         $this->assertTrue($t->has('foo', 'bar'));
+
+        $t = $this->getMock('Illuminate\Translation\Translator', ['get'], [$this->getLoader(), 'en']);
+        $t->expects($this->once())->method('get')->with($this->equalTo('foo'), $this->equalTo([]), $this->equalTo('bar'), false)->will($this->returnValue('bar'));
+        $this->assertTrue($t->hasForLocale('foo', 'bar'));
+
+        $t = $this->getMock('Illuminate\Translation\Translator', ['get'], [$this->getLoader(), 'en']);
+        $t->expects($this->once())->method('get')->with($this->equalTo('foo'), $this->equalTo([]), $this->equalTo('bar'), false)->will($this->returnValue('foo'));
+        $this->assertFalse($t->hasForLocale('foo', 'bar'));
+
+        $t = $this->getMock('Illuminate\Translation\Translator', ['load', 'getLine'], [$this->getLoader(), 'en']);
+        $t->expects($this->once())->method('load')->with($this->equalTo('*'), $this->equalTo('foo'), $this->equalTo('en'))->will($this->returnValue(null));
+        $t->expects($this->once())->method('getLine')->with($this->equalTo('*'), $this->equalTo('foo'), $this->equalTo('en'), null, $this->equalTo([]))->will($this->returnValue('bar'));
+        $this->assertTrue($t->hasForLocale('foo'));
+
+        $t = $this->getMock('Illuminate\Translation\Translator', ['load', 'getLine'], [$this->getLoader(), 'en']);
+        $t->expects($this->once())->method('load')->with($this->equalTo('*'), $this->equalTo('foo'), $this->equalTo('en'))->will($this->returnValue(null));
+        $t->expects($this->once())->method('getLine')->with($this->equalTo('*'), $this->equalTo('foo'), $this->equalTo('en'), null, $this->equalTo([]))->will($this->returnValue('foo'));
+        $this->assertFalse($t->hasForLocale('foo'));
     }
 
     public function testGetMethodProperlyLoadsAndRetrievesItem()

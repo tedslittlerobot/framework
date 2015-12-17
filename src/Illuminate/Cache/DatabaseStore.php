@@ -10,6 +10,8 @@ use Illuminate\Contracts\Encryption\Encrypter as EncrypterContract;
 
 class DatabaseStore implements Store
 {
+    use RetrievesMultipleKeys;
+
     /**
      * The database connection instance.
      *
@@ -58,7 +60,7 @@ class DatabaseStore implements Store
     /**
      * Retrieve an item from the cache by key.
      *
-     * @param  string  $key
+     * @param  string|array  $key
      * @return mixed
      */
     public function get($key)
@@ -70,7 +72,7 @@ class DatabaseStore implements Store
         // If we have a cache record we will check the expiration time against current
         // time on the system and see if the record has expired. If it has, we will
         // remove the records from the database table so it isn't returned again.
-        if (!is_null($cache)) {
+        if (! is_null($cache)) {
             if (is_array($cache)) {
                 $cache = (object) $cache;
             }
@@ -157,7 +159,7 @@ class DatabaseStore implements Store
 
         $cache = $this->table()->where('key', $prefixed)->lockForUpdate()->first();
 
-        if (!is_null($cache)) {
+        if (! is_null($cache)) {
             $current = $this->encrypter->decrypt($cache->value);
 
             if (is_numeric($current)) {

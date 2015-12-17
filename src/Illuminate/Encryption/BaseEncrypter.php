@@ -2,7 +2,6 @@
 
 namespace Illuminate\Encryption;
 
-use Illuminate\Support\Str;
 use Illuminate\Contracts\Encryption\DecryptException;
 
 abstract class BaseEncrypter
@@ -41,11 +40,11 @@ abstract class BaseEncrypter
         // If the payload is not valid JSON or does not have the proper keys set we will
         // assume it is invalid and bail out of the routine since we will not be able
         // to decrypt the given value. We'll also check the MAC for this encryption.
-        if (!$payload || $this->invalidPayload($payload)) {
+        if (! $payload || $this->invalidPayload($payload)) {
             throw new DecryptException('The payload is invalid.');
         }
 
-        if (!$this->validMac($payload)) {
+        if (! $this->validMac($payload)) {
             throw new DecryptException('The MAC is invalid.');
         }
 
@@ -60,7 +59,7 @@ abstract class BaseEncrypter
      */
     protected function invalidPayload($data)
     {
-        return !is_array($data) || !isset($data['iv']) || !isset($data['value']) || !isset($data['mac']);
+        return ! is_array($data) || ! isset($data['iv']) || ! isset($data['value']) || ! isset($data['mac']);
     }
 
     /**
@@ -73,10 +72,10 @@ abstract class BaseEncrypter
      */
     protected function validMac(array $payload)
     {
-        $bytes = Str::randomBytes(16);
+        $bytes = random_bytes(16);
 
         $calcMac = hash_hmac('sha256', $this->hash($payload['iv'], $payload['value']), $bytes, true);
 
-        return Str::equals(hash_hmac('sha256', $payload['mac'], $bytes, true), $calcMac);
+        return hash_equals(hash_hmac('sha256', $payload['mac'], $bytes, true), $calcMac);
     }
 }

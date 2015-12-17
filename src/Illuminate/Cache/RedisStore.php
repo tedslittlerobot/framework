@@ -39,21 +39,46 @@ class RedisStore extends TaggableStore implements Store
     public function __construct(Redis $redis, $prefix = '', $connection = 'default')
     {
         $this->redis = $redis;
+        $this->setPrefix($prefix);
         $this->connection = $connection;
-        $this->prefix = strlen($prefix) > 0 ? $prefix.':' : '';
     }
 
     /**
      * Retrieve an item from the cache by key.
      *
-     * @param  string  $key
+     * @param  string|array  $key
      * @return mixed
      */
     public function get($key)
     {
-        if (!is_null($value = $this->connection()->get($this->prefix.$key))) {
+        if (! is_null($value = $this->connection()->get($this->prefix.$key))) {
             return is_numeric($value) ? $value : unserialize($value);
         }
+    }
+
+    /**
+     * Retrieve multiple items from the cache by key.
+     *
+     * Items not found in the cache will have a null value.
+     *
+     * @param  array  $keys
+     * @return array
+     */
+    public function many(array $keys)
+    {
+        $return = [];
+
+        $prefixedKeys = array_map(function ($key) {
+            return $this->prefix.$key;
+        }, $keys);
+
+        $values = $this->connection()->mget($prefixedKeys);
+
+        foreach ($values as $index => $value) {
+            $return[$keys[$index]] = is_numeric($value) ? $value : unserialize($value);
+        }
+
+        return $return;
     }
 
     /**
@@ -71,6 +96,24 @@ class RedisStore extends TaggableStore implements Store
         $minutes = max(1, $minutes);
 
         $this->connection()->setex($this->prefix.$key, $minutes * 60, $value);
+    }
+
+    /**
+     * Store multiple items in the cache for a given number of minutes.
+     *
+     * @param  array  $values
+     * @param  int  $minutes
+     * @return void
+     */
+    public function putMany(array $values, $minutes)
+    {
+        $this->connection()->multi();
+
+        foreach ($values as $key => $value) {
+            $this->put($key, $value, $minutes);
+        }
+
+        $this->connection()->exec();
     }
 
     /**
@@ -182,5 +225,16 @@ class RedisStore extends TaggableStore implements Store
     public function getPrefix()
     {
         return $this->prefix;
+    }
+
+    /**
+     * Set the cache key prefix.
+     *
+     * @param  string  $prefix
+     * @return void
+     */
+    public function setPrefix($prefix)
+    {
+        $this->prefix = ! empty($prefix) ? $prefix.':' : '';
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Illuminate\Database;
 
+use PDO;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -63,7 +64,7 @@ class DatabaseManager implements ConnectionResolverInterface
         // If we haven't created this connection, we'll create it based on the config
         // provided in the application. Once we've created the connections we will
         // set the "fetch mode" for PDO which determines the query return types.
-        if (!isset($this->connections[$name])) {
+        if (! isset($this->connections[$name])) {
             $connection = $this->makeConnection($name);
 
             $this->setPdoForType($connection, $type);
@@ -124,7 +125,7 @@ class DatabaseManager implements ConnectionResolverInterface
     {
         $this->disconnect($name = $name ?: $this->getDefaultConnection());
 
-        if (!isset($this->connections[$name])) {
+        if (! isset($this->connections[$name])) {
             return $this->connection($name);
         }
 
@@ -260,6 +261,26 @@ class DatabaseManager implements ConnectionResolverInterface
     public function setDefaultConnection($name)
     {
         $this->app['config']['database.default'] = $name;
+    }
+
+    /**
+     * Get all of the support drivers.
+     *
+     * @return array
+     */
+    public function supportedDrivers()
+    {
+        return ['mysql', 'pgsql', 'sqlite', 'sqlsrv'];
+    }
+
+    /**
+     * Get all of the drivers that are actually available.
+     *
+     * @return array
+     */
+    public function availableDrivers()
+    {
+        return array_intersect($this->supportedDrivers(), str_replace('dblib', 'sqlsrv', PDO::getAvailableDrivers()));
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Illuminate\Queue\Console;
 
+use Carbon\Carbon;
 use Illuminate\Queue\Worker;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Queue\Job;
@@ -51,7 +52,7 @@ class WorkCommand extends Command
      */
     public function fire()
     {
-        if ($this->downForMaintenance() && !$this->option('daemon')) {
+        if ($this->downForMaintenance() && ! $this->option('daemon')) {
             return $this->worker->sleep($this->option('sleep'));
         }
 
@@ -73,7 +74,7 @@ class WorkCommand extends Command
         // If a job was fired by the worker, we'll write the output out to the console
         // so that the developer can watch live while the queue runs in the console
         // window, which will also of get logged if stdout is logged out to disk.
-        if (!is_null($response['job'])) {
+        if (! is_null($response['job'])) {
             $this->writeOutput($response['job'], $response['failed']);
         }
     }
@@ -119,9 +120,9 @@ class WorkCommand extends Command
     protected function writeOutput(Job $job, $failed)
     {
         if ($failed) {
-            $this->output->writeln('<error>Failed:</error> '.$job->getName());
+            $this->output->writeln('<error>['.Carbon::now()->format('Y-m-d H:i:s').'] Failed:</error> '.$job->getName());
         } else {
-            $this->output->writeln('<info>Processed:</info> '.$job->getName());
+            $this->output->writeln('<info>['.Carbon::now()->format('Y-m-d H:i:s').'] Processed:</info> '.$job->getName());
         }
     }
 

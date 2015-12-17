@@ -2,6 +2,7 @@
 
 namespace Illuminate\Validation;
 
+use Illuminate\Support\Str;
 use Illuminate\Database\ConnectionResolverInterface;
 
 class DatabasePresenceVerifier implements PresenceVerifierInterface
@@ -46,7 +47,7 @@ class DatabasePresenceVerifier implements PresenceVerifierInterface
     {
         $query = $this->table($collection)->where($column, '=', $value);
 
-        if (!is_null($excludeId) && $excludeId != 'NULL') {
+        if (! is_null($excludeId) && $excludeId != 'NULL') {
             $query->where($idColumn ?: 'id', '<>', $excludeId);
         }
 
@@ -91,6 +92,8 @@ class DatabasePresenceVerifier implements PresenceVerifierInterface
             $query->whereNull($key);
         } elseif ($extraValue === 'NOT_NULL') {
             $query->whereNotNull($key);
+        } elseif (Str::startsWith($extraValue, '!')) {
+            $query->where($key, '!=', mb_substr($extraValue, 1));
         } else {
             $query->where($key, $extraValue);
         }

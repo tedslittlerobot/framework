@@ -4,7 +4,6 @@ namespace Illuminate\Foundation\Console;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Console\Command;
@@ -90,7 +89,7 @@ class RouteListCommand extends Command
         }
 
         if ($sort = $this->option('sort')) {
-            $results = array_sort($results, function ($value) use ($sort) {
+            $results = Arr::sort($results, function ($value) use ($sort) {
                 return $value[$sort];
             });
         }
@@ -141,13 +140,9 @@ class RouteListCommand extends Command
     {
         $middlewares = array_values($route->middleware());
 
-        $middlewares = array_unique(
-            array_merge($middlewares, $this->getPatternFilters($route))
-        );
-
         $actionName = $route->getActionName();
 
-        if (!empty($actionName) && $actionName !== 'Closure') {
+        if (! empty($actionName) && $actionName !== 'Closure') {
             $middlewares = array_merge($middlewares, $this->getControllerMiddleware($actionName));
         }
 
@@ -185,7 +180,7 @@ class RouteListCommand extends Command
         $results = [];
 
         foreach ($controller->getMiddleware() as $name => $options) {
-            if (!$this->methodExcludedByOptions($method, $options)) {
+            if (! $this->methodExcludedByOptions($method, $options)) {
                 $results[] = Arr::get($middleware, $name, $name);
             }
         }
@@ -202,44 +197,8 @@ class RouteListCommand extends Command
      */
     protected function methodExcludedByOptions($method, array $options)
     {
-        return (!empty($options['only']) && !in_array($method, (array) $options['only'])) ||
-            (!empty($options['except']) && in_array($method, (array) $options['except']));
-    }
-
-    /**
-     * Get all of the pattern filters matching the route.
-     *
-     * @param  \Illuminate\Routing\Route  $route
-     * @return array
-     */
-    protected function getPatternFilters($route)
-    {
-        $patterns = [];
-
-        foreach ($route->methods() as $method) {
-            // For each method supported by the route we will need to gather up the patterned
-            // filters for that method. We will then merge these in with the other filters
-            // we have already gathered up then return them back out to these consumers.
-            $inner = $this->getMethodPatterns($route->uri(), $method);
-
-            $patterns = array_merge($patterns, array_keys($inner));
-        }
-
-        return $patterns;
-    }
-
-    /**
-     * Get the pattern filters for a given URI and method.
-     *
-     * @param  string  $uri
-     * @param  string  $method
-     * @return array
-     */
-    protected function getMethodPatterns($uri, $method)
-    {
-        return $this->router->findPatternFilters(
-            Request::create($uri, $method)
-        );
+        return (! empty($options['only']) && ! in_array($method, (array) $options['only'])) ||
+            (! empty($options['except']) && in_array($method, (array) $options['except']));
     }
 
     /**
@@ -250,8 +209,9 @@ class RouteListCommand extends Command
      */
     protected function filterRoute(array $route)
     {
-        if (($this->option('name') && !Str::contains($route['name'], $this->option('name'))) ||
-             $this->option('path') && !Str::contains($route['uri'], $this->option('path'))) {
+        if (($this->option('name') && ! Str::contains($route['name'], $this->option('name'))) ||
+             $this->option('path') && ! Str::contains($route['uri'], $this->option('path')) ||
+             $this->option('method') && ! Str::contains($route['method'], $this->option('method'))) {
             return;
         }
 
@@ -266,13 +226,15 @@ class RouteListCommand extends Command
     protected function getOptions()
     {
         return [
+            ['method', null, InputOption::VALUE_OPTIONAL, 'Filter the routes by method.'],
+
             ['name', null, InputOption::VALUE_OPTIONAL, 'Filter the routes by name.'],
 
             ['path', null, InputOption::VALUE_OPTIONAL, 'Filter the routes by path.'],
 
             ['reverse', 'r', InputOption::VALUE_NONE, 'Reverse the ordering of the routes.'],
 
-            ['sort', null, InputOption::VALUE_OPTIONAL, 'The column (domain, method, uri, name, action, middleware) to sort by.', 'uri'],
+            ['sort', null, InputOption::VALUE_OPTIONAL, 'The column (host, method, uri, name, action, middleware) to sort by.', 'uri'],
         ];
     }
 }

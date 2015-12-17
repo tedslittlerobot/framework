@@ -2,6 +2,7 @@
 
 use Mockery as m;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as BaseCollection;
 
 class DatabaseEloquentCollectionTest extends PHPUnit_Framework_TestCase
 {
@@ -222,10 +223,35 @@ class DatabaseEloquentCollectionTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(new Collection([$one]), $c->except([2, 3]));
     }
 
+    public function testWithHiddenSetsHiddenOnEntireCollection()
+    {
+        $c = new Collection([new TestEloquentCollectionModel]);
+        $c = $c->withHidden(['hidden']);
+
+        $this->assertEquals([], $c[0]->getHidden());
+    }
+
+    public function testNonModelRelatedMethods()
+    {
+        $a = new Collection([['foo' => 'bar'], ['foo' => 'baz']]);
+        $b = new Collection(['a', 'b', 'c']);
+        $this->assertEquals(get_class($a->pluck('foo')), BaseCollection::class);
+        $this->assertEquals(get_class($a->keys()), BaseCollection::class);
+        $this->assertEquals(get_class($a->collapse()), BaseCollection::class);
+        $this->assertEquals(get_class($a->flatten()), BaseCollection::class);
+        $this->assertEquals(get_class($a->zip(['a', 'b'], ['c', 'd'])), BaseCollection::class);
+        $this->assertEquals(get_class($b->flip()), BaseCollection::class);
+    }
+
     public function testPluckReturnsBaseCollection()
     {
         $c = new Collection([(object) ['foo' => 'bar'], (object) ['foo' => 'baz']]);
 
         $this->assertEquals(collect(['bar', 'baz']), $c->pluck('foo'));
     }
+}
+
+class TestEloquentCollectionModel extends Illuminate\Database\Eloquent\Model
+{
+    protected $hidden = ['hidden'];
 }

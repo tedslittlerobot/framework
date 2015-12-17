@@ -119,28 +119,6 @@ class MailMailerTest extends PHPUnit_Framework_TestCase
         $mailer->laterOn('queue', 10, 'foo', [1], 'callable');
     }
 
-    public function testMessagesCanBeLoggedInsteadOfSent()
-    {
-        $mailer = $this->getMock('Illuminate\Mail\Mailer', ['createMessage'], $this->getMocks());
-        $message = m::mock('Swift_Mime_Message');
-        $mailer->expects($this->once())->method('createMessage')->will($this->returnValue($message));
-        $view = m::mock('StdClass');
-        $mailer->getViewFactory()->shouldReceive('make')->once()->with('foo', ['data', 'message' => $message])->andReturn($view);
-        $view->shouldReceive('render')->once()->andReturn('rendered.view');
-        $message->shouldReceive('setBody')->once()->with('rendered.view', 'text/html');
-        $message->shouldReceive('setFrom')->never();
-        $this->setSwiftMailer($mailer);
-        $message->shouldReceive('getTo')->once()->andReturn(['taylor@userscape.com' => 'Taylor']);
-        $message->shouldReceive('getSwiftMessage')->once()->andReturn($message);
-        $mailer->getSwiftMailer()->shouldReceive('send')->never();
-        $logger = m::mock('Psr\Log\LoggerInterface');
-        $logger->shouldReceive('info')->once()->with('Pretending to mail message to: taylor@userscape.com');
-        $mailer->setLogger($logger);
-        $mailer->pretend();
-
-        $mailer->send('foo', ['data'], function ($m) {});
-    }
-
     public function testMailerCanResolveMailerClasses()
     {
         $mailer = $this->getMock('Illuminate\Mail\Mailer', ['createMessage'], $this->getMocks());
@@ -173,9 +151,8 @@ class MailMailerTest extends PHPUnit_Framework_TestCase
         $view->shouldReceive('render')->once()->andReturn('rendered.view');
         $this->setSwiftMailer($mailer);
         $mailer->alwaysFrom('taylorotwell@gmail.com', 'Taylor Otwell');
-        $me = $this;
-        $mailer->getSwiftMailer()->shouldReceive('send')->once()->with(m::type('Swift_Message'), [])->andReturnUsing(function ($message) use ($me) {
-            $me->assertEquals(['taylorotwell@gmail.com' => 'Taylor Otwell'], $message->getFrom());
+        $mailer->getSwiftMailer()->shouldReceive('send')->once()->with(m::type('Swift_Message'), [])->andReturnUsing(function ($message) {
+            $this->assertEquals(['taylorotwell@gmail.com' => 'Taylor Otwell'], $message->getFrom());
         });
         $mailer->send('foo', ['data'], function ($m) {});
     }
@@ -224,6 +201,7 @@ class FailingSwiftMailerStub
     {
         $failed[] = 'taylorotwell@gmail.com';
     }
+
     public function getTransport()
     {
         $transport = m::mock('Swift_Transport');

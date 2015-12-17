@@ -54,7 +54,6 @@ class ContainerContainerTest extends PHPUnit_Framework_TestCase
     {
         $container = new Container;
         $container->singleton('ContainerConcreteStub');
-        $bindings = $container->getBindings();
 
         $var1 = $container->make('ContainerConcreteStub');
         $var2 = $container->make('ContainerConcreteStub');
@@ -319,12 +318,14 @@ return $obj; });
         $this->assertEquals($parameters, $instance->receivedParameters);
     }
 
+    /**
+     * @expectedException Illuminate\Contracts\Container\BindingResolutionException
+     * @expectedExceptionMessage Unresolvable dependency resolving [Parameter #0 [ <required> $first ]] in class ContainerMixedPrimitiveStub
+     */
     public function testInternalClassWithDefaultParameters()
     {
-        $this->setExpectedException('Illuminate\Contracts\Container\BindingResolutionException', 'Unresolvable dependency resolving [Parameter #0 [ <required> $first ]] in class ContainerMixedPrimitiveStub');
         $container = new Container;
-        $parameters = [];
-        $container->make('ContainerMixedPrimitiveStub', $parameters);
+        $container->make('ContainerMixedPrimitiveStub', []);
     }
 
     public function testCallWithDependencies()
@@ -446,6 +447,31 @@ return $obj; });
         $this->assertInstanceOf('ContainerImplementationStubTwo', $two->impl);
     }
 
+    public function testContextualBindingWorksRegardlessOfLeadingBackslash()
+    {
+        $container = new Container;
+
+        $container->bind('IContainerContractStub', 'ContainerImplementationStub');
+
+        $container->when('\ContainerTestContextInjectOne')->needs('IContainerContractStub')->give('ContainerImplementationStubTwo');
+        $container->when('ContainerTestContextInjectTwo')->needs('\IContainerContractStub')->give('ContainerImplementationStubTwo');
+
+        $this->assertInstanceOf(
+            'ContainerImplementationStubTwo',
+            $container->make('ContainerTestContextInjectOne')->impl
+        );
+
+        $this->assertInstanceOf(
+            'ContainerImplementationStubTwo',
+            $container->make('ContainerTestContextInjectTwo')->impl
+        );
+
+        $this->assertInstanceOf(
+            'ContainerImplementationStubTwo',
+            $container->make('\ContainerTestContextInjectTwo')->impl
+        );
+    }
+
     public function testContainerTags()
     {
         $container = new Container;
@@ -465,6 +491,66 @@ return $obj; });
         $this->assertInstanceOf('ContainerImplementationStubTwo', $container->tagged('foo')[1]);
 
         $this->assertEmpty($container->tagged('this_tag_does_not_exist'));
+    }
+
+    public function testForgetInstanceForgetsInstance()
+    {
+        $container = new Container;
+        $containerConcreteStub = new ContainerConcreteStub;
+        $container->instance('ContainerConcreteStub', $containerConcreteStub);
+        $this->assertTrue($container->isShared('ContainerConcreteStub'));
+        $container->forgetInstance('ContainerConcreteStub');
+        $this->assertFalse($container->isShared('ContainerConcreteStub'));
+    }
+
+    public function testForgetInstancesForgetsAllInstances()
+    {
+        $container = new Container;
+        $containerConcreteStub1 = new ContainerConcreteStub;
+        $containerConcreteStub2 = new ContainerConcreteStub;
+        $containerConcreteStub3 = new ContainerConcreteStub;
+        $container->instance('Instance1', $containerConcreteStub1);
+        $container->instance('Instance2', $containerConcreteStub2);
+        $container->instance('Instance3', $containerConcreteStub3);
+        $this->assertTrue($container->isShared('Instance1'));
+        $this->assertTrue($container->isShared('Instance2'));
+        $this->assertTrue($container->isShared('Instance3'));
+        $container->forgetInstances();
+        $this->assertFalse($container->isShared('Instance1'));
+        $this->assertFalse($container->isShared('Instance2'));
+        $this->assertFalse($container->isShared('Instance3'));
+    }
+
+    public function testContainerFlushFlushesAllBindingsAliasesAndResolvedInstances()
+    {
+        $container = new Container;
+        $container->bind('ConcreteStub', function () { return new ContainerConcreteStub; }, true);
+        $container->alias('ConcreteStub', 'ContainerConcreteStub');
+        $concreteStubInstance = $container->make('ConcreteStub');
+        $this->assertTrue($container->resolved('ConcreteStub'));
+        $this->assertTrue($container->isAlias('ContainerConcreteStub'));
+        $this->assertArrayHasKey('ConcreteStub', $container->getBindings());
+        $this->assertTrue($container->isShared('ConcreteStub'));
+        $container->flush();
+        $this->assertFalse($container->resolved('ConcreteStub'));
+        $this->assertFalse($container->isAlias('ContainerConcreteStub'));
+        $this->assertEmpty($container->getBindings());
+        $this->assertFalse($container->isShared('ConcreteStub'));
+    }
+
+    public function testResolvedResolvesAliasToBindingNameBeforeChecking()
+    {
+        $container = new Container;
+        $container->bind('ConcreteStub', function () { return new ContainerConcreteStub; }, true);
+        $container->alias('ConcreteStub', 'foo');
+
+        $this->assertFalse($container->resolved('ConcreteStub'));
+        $this->assertFalse($container->resolved('foo'));
+
+        $concreteStubInstance = $container->make('ConcreteStub');
+
+        $this->assertTrue($container->resolved('ConcreteStub'));
+        $this->assertTrue($container->resolved('foo'));
     }
 }
 
@@ -486,6 +572,7 @@ class ContainerImplementationStubTwo implements IContainerContractStub
 class ContainerDependentStub
 {
     public $impl;
+
     public function __construct(IContainerContractStub $impl)
     {
         $this->impl = $impl;
@@ -495,6 +582,7 @@ class ContainerDependentStub
 class ContainerNestedDependentStub
 {
     public $inner;
+
     public function __construct(ContainerDependentStub $inner)
     {
         $this->inner = $inner;
@@ -505,6 +593,7 @@ class ContainerDefaultValueStub
 {
     public $stub;
     public $default;
+
     public function __construct(ContainerConcreteStub $stub, $default = 'taylor')
     {
         $this->stub = $stub;
@@ -517,6 +606,7 @@ class ContainerMixedPrimitiveStub
     public $first;
     public $last;
     public $stub;
+
     public function __construct($first, ContainerConcreteStub $stub, $last)
     {
         $this->stub = $stub;
@@ -538,6 +628,7 @@ class ContainerConstructorParameterLoggingStub
 class ContainerLazyExtendStub
 {
     public static $initialized = false;
+
     public function init()
     {
         static::$initialized = true;
@@ -560,6 +651,7 @@ class ContainerTestCallStub
 class ContainerTestContextInjectOne
 {
     public $impl;
+
     public function __construct(IContainerContractStub $impl)
     {
         $this->impl = $impl;
@@ -569,6 +661,7 @@ class ContainerTestContextInjectOne
 class ContainerTestContextInjectTwo
 {
     public $impl;
+
     public function __construct(IContainerContractStub $impl)
     {
         $this->impl = $impl;

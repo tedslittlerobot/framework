@@ -169,28 +169,6 @@ class CacheManager implements FactoryContract
     }
 
     /**
-     * Create an instance of the WinCache cache driver.
-     *
-     * @param  array  $config
-     * @return \Illuminate\Cache\WinCacheStore
-     */
-    protected function createWincacheDriver(array $config)
-    {
-        return $this->repository(new WinCacheStore($this->getPrefix($config)));
-    }
-
-    /**
-     * Create an instance of the XCache cache driver.
-     *
-     * @param  array  $config
-     * @return \Illuminate\Cache\WinCacheStore
-     */
-    protected function createXcacheDriver(array $config)
-    {
-        return $this->repository(new XCacheStore($this->getPrefix($config)));
-    }
-
-    /**
      * Create an instance of the Redis cache driver.
      *
      * @param  array  $config
@@ -200,7 +178,7 @@ class CacheManager implements FactoryContract
     {
         $redis = $this->app['redis'];
 
-        $connection = Arr::get($config, 'connection', 'default') ?: 'default';
+        $connection = Arr::get($config, 'connection', 'default');
 
         return $this->repository(new RedisStore($redis, $this->getPrefix($config), $connection));
     }
